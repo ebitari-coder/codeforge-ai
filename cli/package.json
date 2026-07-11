@@ -1,0 +1,49 @@
+{
+  "name": "codeforge-cli",
+  "version": "1.0.0",
+  "description": "CodeForge AI - AI-powered coding assistant for the terminal",
+  "main": "index.js",
+  "bin": {
+    "codeforge": "./index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "build": "./build.sh",
+    "test": "node index.js --help"
+  },
+  "keywords": [
+    "ai",
+    "cli",
+    "coding",
+    "assistant",
+    "openrouter",
+    "code-review",
+    "code-generation",
+    "debugging",
+    "terminal",
+    "tui"
+  ],
+  "author": "CodeForge Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codeforge-ai/codeforge-ai"
+  },
+  "homepage": "https://codeforge-ai.github.io/codeforge-ai",
+  "bugs": {
+    "url": "https://github.com/codeforge-ai/codeforge-ai/issues"
+  },
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "files": [
+    "index.js",
+    "README.md",
+    "install/"
+  ],
+  "dependencies": {
+    "commander": "^12.0.0",
+    "chalk": "^4.1.2",
+    "ora": "^5.4.1"
+  }
+}

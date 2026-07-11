@@ -1,0 +1,2 @@
+#!/usr/bin/env bash
+exec node /home/brave-dimaro/source/repos/codeforge-ai-extension/cli/index.js "$@"

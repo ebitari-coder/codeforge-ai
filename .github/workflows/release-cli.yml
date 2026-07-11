@@ -1,0 +1,116 @@
+name: Release CLI
+
+on:
+  push:
+    tags:
+      - 'cli-v*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag (e.g., 1.0.0)'
+        required: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        working-directory: cli
+        run: npm ci
+
+      - name: Build CLI packages
+        env:
+          VERSION: ${{ github.event.inputs.version || github.ref_name }}
+        run: |
+          cd cli
+          chmod +x build.sh
+          ./build.sh
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cli-packages
+          path: release/cli/*
+
+  publish-npm:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          registry-url: 'https://registry.npmjs.org'
+
+      - name: Update package version
+        run: |
+          VERSION="${{ github.event.inputs.version || github.ref_name }}"
+          VERSION="${VERSION#cli-v}"
+          cd cli
+          npm version "$VERSION" --no-git-tag-version
+
+      - name: Publish to npm
+        working-directory: cli
+        run: npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: cli-packages
+          path: release/cli
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: cli-${{ github.event.inputs.version || github.ref_name }}
+          name: CodeForge AI CLI v${{ github.event.inputs.version || github.ref_name }}
+          body: |
+            ## CodeForge AI CLI
+            
+            Install via terminal:
+            
+            **Linux/macOS:**
+            ```bash
+            curl -fsSL https://codeforge.ai/install.sh | bash
+            ```
+            
+            **Windows (PowerShell):**
+            ```powershell
+            irm https://codeforge.ai/install.ps1 | iex
+            ```
+            
+            **npm:**
+            ```bash
+            npm install -g codeforge-cli
+            ```
+            
+            ## What's New
+            - See [CHANGELOG](https://github.com/codeforge-ai/codeforge-ai/blob/main/CHANGELOG.md)
+          files: |
+            release/cli/*
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

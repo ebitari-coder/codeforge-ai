@@ -1,0 +1,182 @@
+{
+  "name": "codeforge-ai",
+  "displayName": "CodeForge AI",
+  "description": "Purpose-Built IDE With Advanced AI Agents",
+  "version": "1.0.0",
+  "publisher": "codeforge-ai",
+  "author": {
+    "name": "CodeForge Team"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/codeforge-ai/codeforge-ai"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "AI",
+    "Programming Languages"
+  ],
+  "keywords": [
+    "ai",
+    "coding",
+    "assistant",
+    "openrouter",
+    "free",
+    "agents"
+  ],
+  "pricing": "Free",
+  "activationEvents": [
+    "onStartupFinished",
+    "onView:codeforgeMain"
+  ],
+  "main": "./dist/extension.js",
+    "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "codeforge-main-view",
+          "title": "CodeForge AI",
+          "icon": "icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "codeforge-main-view": [
+        {
+          "type": "webview",
+          "id": "codeforgeMain",
+          "name": "CodeForge AI"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "codeforge.chat",
+        "title": "CodeForge: Open AI Chat",
+        "icon": "$(comment-discussion)"
+      },
+      {
+        "command": "codeforge.plan",
+        "title": "CodeForge: Create Project Plan",
+        "icon": "$(list-tree)"
+      },
+      {
+        "command": "codeforge.generate",
+        "title": "CodeForge: Generate Code",
+        "icon": "$(code)"
+      },
+      {
+        "command": "codeforge.review",
+        "title": "CodeForge: Review Code",
+        "icon": "$(search)"
+      },
+      {
+        "command": "codeforge.debug",
+        "title": "CodeForge: Analyze & Debug",
+        "icon": "$(bug)"
+      },
+      {
+        "command": "codeforge.explain",
+        "title": "CodeForge: Explain Code",
+        "icon": "$(info)"
+      },
+      {
+        "command": "codeforge.selectModel",
+        "title": "CodeForge: Select AI Model",
+        "icon": "$(gear)"
+      },
+      {
+        "command": "codeforge.clearHistory",
+        "title": "CodeForge: Clear Chat History",
+        "icon": "$(trash)"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        { "command": "codeforge.chat", "when": "true" },
+        { "command": "codeforge.plan", "when": "true" },
+        { "command": "codeforge.generate", "when": "true" },
+        { "command": "codeforge.review", "when": "editorHasSelection" },
+        { "command": "codeforge.debug", "when": "editorHasSelection" },
+        { "command": "codeforge.explain", "when": "editorHasSelection" },
+        { "command": "codeforge.selectModel", "when": "true" },
+        { "command": "codeforge.clearHistory", "when": "true" }
+      ],
+      "editor/context": [
+        { "command": "codeforge.explain", "when": "editorHasSelection", "group": "codeforge" },
+        { "command": "codeforge.review", "when": "editorHasSelection", "group": "codeforge" },
+        { "command": "codeforge.debug", "when": "editorHasSelection", "group": "codeforge" }
+      ],
+      "editor/title": [
+        { "command": "codeforge.chat", "when": "true", "group": "navigation" }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "codeforge.chat",
+        "key": "ctrl+shift+.",
+        "mac": "cmd+shift+."
+      }
+    ],
+    "languages": [
+      {
+        "id": "codeforge-output",
+        "aliases": ["CodeForge Output", "codeforge-output"],
+        "extensions": [".codeforge"]
+      }
+    ],
+    "configuration": {
+      "title": "CodeForge AI",
+      "properties": {
+        "codeforge.apiKey": {
+          "type": "string",
+          "default": "",
+          "description": "OpenRouter API key (get one at https://openrouter.ai/keys)"
+        },
+        "codeforge.defaultModel": {
+          "type": "string",
+          "default": "openai/gpt-oss-120b",
+          "description": "Default AI model for code generation"
+        },
+        "codeforge.autoModel": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically select the best model for each task"
+        },
+        "codeforge.maxTokens": {
+          "type": "number",
+          "default": 4096,
+          "description": "Maximum tokens for AI responses"
+        },
+        "codeforge.temperature": {
+          "type": "number",
+          "default": 0.7,
+          "description": "Temperature for AI responses (0.0-2.0)"
+        },
+        "codeforge.maxHistory": {
+          "type": "number",
+          "default": 15,
+          "description": "Maximum number of chat messages to persist"
+        },
+        "codeforge.enableCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline AI CodeLens actions"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run esbuild-base -- --minify",
+    "esbuild-base": "esbuild src/extension.ts --bundle --outfile=dist/extension.js --external:vscode --external:node --platform=node",
+    "esbuild": "npm run esbuild-base -- --sourcemap",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@vscode/vsce": "^3.9.1",
+    "esbuild": "^0.28.0"
+  }
+}

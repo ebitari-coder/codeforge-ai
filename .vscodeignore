@@ -1,0 +1,20 @@
+.vscode/**
+.vscode-test/**
+out/**
+dist/*.map
+node_modules/**
+src/**
+.gitignore
+.editorconfig
+tsconfig.json
+package-lock.json
+esbuild.js
+**/*.vsix
+release/**
+*.ps1
+AGENTS.md
+cli/**
+# Keep icon files and README for marketplace
+!icon.svg
+!icon.png
+!README.md
