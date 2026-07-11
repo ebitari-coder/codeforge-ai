@@ -1015,7 +1015,10 @@ program
     const agent = options.agent || 'default';
     const model = options.model || (config.autoMode && AGENT_MODELS[agent] ? AGENT_MODELS[agent] : config.defaultModel);
 
-    const systemPrompt = SYSTEM_PROMPTS[agent] || SYSTEM_PROMPTS.default;
+    const basePrompt = SYSTEM_PROMPTS[agent] || SYSTEM_PROMPTS.default;
+    const workspaceContext = workspace.getWorkspaceContext();
+    const systemPrompt = `${basePrompt}\n\n${workspaceContext}`;
+    
     const messages = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: message }
@@ -1025,7 +1028,9 @@ program
     try {
       const response = await chat(messages, model, config.apiKey);
       spinner.stop();
-      console.log(formatOutput(response.content));
+      let responseText = response.content;
+      responseText = await handleAIFileOps(responseText);
+      console.log(formatOutput(responseText));
 
       const stats = loadStats();
       stats.totalTokens += response.tokens || 0;
