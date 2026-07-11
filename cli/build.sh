@@ -60,7 +60,13 @@ EOF
         *)
             cat > "$BUILD_DIR/codeforge" << 'EOF'
 #!/usr/bin/env bash
-DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SOURCE="${BASH_SOURCE[0]}"
+while [ -h "$SOURCE" ]; do
+  DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
+  SOURCE="$(readlink "$SOURCE")"
+  [[ $SOURCE != /* ]] && SOURCE="$DIR/$SOURCE"
+done
+DIR="$( cd -P "$( dirname "$SOURCE" )" && pwd )"
 exec node "$DIR/index.js" "$@"
 EOF
             chmod +x "$BUILD_DIR/codeforge"

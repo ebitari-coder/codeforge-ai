@@ -15,14 +15,17 @@ function Write-Warn { Write-Host "⚠ $args" -ForegroundColor Yellow }
 function Write-Error { Write-Host "✗ $args" -ForegroundColor Red; exit 1 }
 
 Write-Host ""
-Write-Host "█▀▄▀█ █ █▄ ▄█ █▀▀█ █▀▀ █▀▀█ █▀▀▄ █▀▀▀" -ForegroundColor Blue
-Write-Host "█ ▀ █ █ █ ▀ █ █  █ █   █  █ █  █ █▀▀ " -ForegroundColor Blue
-Write-Host "▀   ▀ ▀ ▀   ▀ ▀▀▀▀ ▀▀▀ ▀▀▀▀ ▀▀▀  ▀▀▀▀" -ForegroundColor Blue
+Write-Host "  _____          ______      ______                __  " -ForegroundColor Blue
+Write-Host " / ____|        |  ____|    |  ____|               | | " -ForegroundColor Blue
+Write-Host "| |     ___  ___| |__  __  _| |__   _ __ ___   ___| | ___  " -ForegroundColor Blue
+Write-Host "| |    / _ \/ __|  _ \ \/ / |  __| | '_ \` _ \ / _ \ |/ _ \ " -ForegroundColor Blue
+Write-Host "| |___|  __/ (__| | | \  /  | |____| | | | | |  __/ | (_) | " -ForegroundColor Blue
+Write-Host " \_____|\___|\___|_| |_|\/   |______|_| |_| |_|\___|_|\___/ " -ForegroundColor Blue
 Write-Host "  AI-Powered Coding Assistant Installer"
 Write-Host ""
 
 $Repo = $env:CODEFORGE_REPO
-if (-not $Repo) { $Repo = "codeforge-ai/codeforge-ai" }
+if (-not $Repo) { $Repo = "ebitari-coder/codeforge-ai" }
 
 $arch = if ([Environment]::Is64BitOperatingSystem) { "x64" } else { "x86" }
 $platform = "windows-$arch"

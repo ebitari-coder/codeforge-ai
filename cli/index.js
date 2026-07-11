@@ -258,11 +258,15 @@ function formatOutput(text) {
 
 function printBanner() {
   console.log(chalk.blue(`
-${chalk.bold('█▀▄▀█ █ █▄ ▄█ █▀▀█ █▀▀ █▀▀█ █▀▀▄ █▀▀▀')}
-${chalk.bold('█ ▀ █ █ █ ▀ █ █  █ █   █  █ █  █ █▀▀ ')}
-${chalk.bold('▀   ▀ ▀ ▀   ▀ ▀▀▀▀ ▀▀▀ ▀▀▀▀ ▀▀▀  ▀▀▀▀')}
-${chalk.gray('  AI-Powered Coding Assistant for the Terminal')}
-${chalk.gray('  Version: ' + VERSION)}
+  _____          ______      ______                __      
+ / ____|        |  ____|    |  ____|               | |     
+| |     ___  ___| |__  __  _| |__   _ __ ___   ___| | ___  
+| |    / _ \\/ __|  _ \\ \\/ / |  __| | '_ \` _ \ / _ \ |/ _ \ 
+| |___|  __/ (__| | | \  /  | |____| | | | | |  __/ | (_) |
+ \_____|\___|\___|_| |_|\/   |______|_| |_| |_|\___|_|\___/ 
+                                                             
+  ${chalk.gray('AI-Powered Coding Assistant for the Terminal')}
+  ${chalk.gray('Version: ' + VERSION)}
 `));
 }
 

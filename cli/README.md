@@ -1,6 +1,6 @@
 # CodeForge AI CLI
 
-A powerful command-line interface for CodeForge AI, bringing AI-powered coding assistance to your terminal. Works like mimocode — interactive TUI, session management, and more.
+A powerful command-line interface for CodeForge AI, bringing AI-powered coding assistance to your terminal. Interactive TUI, session management, and more.
 
 ## Installation
 
@@ -16,7 +16,7 @@ npm link
 # Configure your API key
 codeforge providers --set-key sk-or-v1-your-key-here
 
-# Start interactive TUI (like mimocode)
+# Start interactive TUI
 codeforge
 
 # Continue last session

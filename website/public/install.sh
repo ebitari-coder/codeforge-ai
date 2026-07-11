@@ -4,7 +4,7 @@ set -e
 # CodeForge AI Installer
 # Usage: curl -fsSL https://codeforge.ai/install.sh | bash
 
-REPO="${CODEFORGE_REPO:-codeforge-ai/codeforge-ai}"
+REPO="${CODEFORGE_REPO:-ebitari-coder/codeforge-ai}"
 VERSION="${CODEFORGE_VERSION:-1.0.0}"
 INSTALL_DIR="${CODEFORGE_INSTALL_DIR:-$HOME/.codeforge}"
 BIN_DIR="${CODEFORGE_BIN_DIR:-$HOME/.local/bin}"
@@ -63,9 +63,12 @@ try_latest_version() {
 
 main() {
     echo ""
-    echo -e "${BLUE}█▀▄▀█ █ █▄ ▄█ █▀▀█ █▀▀ █▀▀█ █▀▀▄ █▀▀▀${NC}"
-    echo -e "${BLUE}█ ▀ █ █ █ ▀ █ █  █ █   █  █ █  █ █▀▀ ${NC}"
-    echo -e "${BLUE}▀   ▀ ▀ ▀   ▀ ▀▀▀▀ ▀▀▀ ▀▀▀▀ ▀▀▀  ▀▀▀▀${NC}"
+    echo -e "${BLUE}  _____          ______      ______                __  ${NC}"
+    echo -e "${BLUE} / ____|        |  ____|    |  ____|               | | ${NC}"
+    echo -e "${BLUE}| |     ___  ___| |__  __  _| |__   _ __ ___   ___| | ___  ${NC}"
+    echo -e "${BLUE}| |    / _ \\/ __|  _ \\ \\/ / |  __| | '_ \` _ \ / _ \ |/ _ \ ${NC}"
+    echo -e "${BLUE}| |___|  __/ (__| | | \  /  | |____| | | | | |  __/ | (_) | ${NC}"
+    echo -e "${BLUE} \_____|\___|\___|_| |_|\/   |______|_| |_| |_|\___|_|\___/ ${NC}"
     echo -e "  AI-Powered Coding Assistant Installer"
     echo ""
 
@@ -102,20 +105,19 @@ main() {
     fi
     success "Downloaded"
 
-    tar -xzf /tmp/codeforge.tar.gz -C "$INSTALL_DIR"
+    tar -xzf /tmp/codeforge.tar.gz -C "$INSTALL_DIR" --strip-components=1
     rm /tmp/codeforge.tar.gz
     success "Extracted to $INSTALL_DIR"
 
-    # Make executable and symlink
-    if [ -f "$INSTALL_DIR/codeforge" ]; then
-        chmod +x "$INSTALL_DIR/codeforge"
-        ln -sf "$INSTALL_DIR/codeforge" "$BIN_DIR/codeforge"
-    elif [ -f "$INSTALL_DIR/cli/index.js" ]; then
-        # Create wrapper script
-        cat > "$BIN_DIR/codeforge" << EOF
+    # Create wrapper script
+    if [ -f "$INSTALL_DIR/index.js" ]; then
+        cat > "$BIN_DIR/codeforge" << WEOF
 #!/usr/bin/env bash
-exec node "$INSTALL_DIR/cli/index.js" "\$@"
-EOF
+exec node "$INSTALL_DIR/index.js" "\$@"
+WEOF
+        chmod +x "$BIN_DIR/codeforge"
+    elif [ -f "$INSTALL_DIR/codeforge" ]; then
+        cp "$INSTALL_DIR/codeforge" "$BIN_DIR/codeforge"
         chmod +x "$BIN_DIR/codeforge"
     fi
     success "Installed to $BIN_DIR/codeforge"
