@@ -325,24 +325,19 @@ async function handleAIFileOps(text) {
 }
 
 function printBanner() {
-  console.log(chalk.blue(`
-  _____          ______      ______                __      
- / ____|        |  ____|    |  ____|               | |     
-| |     ___  ___| |__  __  _| |__   _ __ ___   ___| | ___  
-| |    / _ \\/ __|  _ \\ \\/ / |  __| | '_ \` _ \ / _ \ |/ _ \ 
-| |___|  __/ (__| | | \  /  | |____| | | | | |  __/ | (_) |
- \_____|\___|\___|_| |_|\/   |______|_| |_| |_|\___|_|\___/ 
-                                                             
-  ${chalk.gray('AI-Powered Coding Assistant for the Terminal')}
-  ${chalk.gray('Version: ' + VERSION)}
-`));
+  console.log(`
+${chalk.gray('⠀')}
+${chalk.cyan('█▀▄▀█ █ █▄ ▄█ █▀▀█ █▀▀ █▀▀█ █▀▀▄ █▀▀▀')}
+${chalk.cyan('█ ▀ █ █ █ ▀ █ █  █ █   █  █ █  █ █▀▀ ')}
+${chalk.cyan('▀   ▀ ▀ ▀   ▀ ▀▀▀▀ ▀▀▀ ▀▀▀▀ ▀▀▀  ▀▀▀▀')}
+${chalk.gray('⠀')}
+`);
 }
 
-function printSessionInfo(sessionId, model) {
-  const meta = getSessionMeta(sessionId);
-  if (meta) {
-    console.log(chalk.gray(`Session: ${sessionId} | Model: ${model} | Messages: ${meta.messageCount || 0}`));
-  }
+function printStatusLine(model, agent, workspaceDir) {
+  const dir = path.basename(workspaceDir);
+  console.log(chalk.gray(`model: ${chalk.white(model)} │ agent: ${chalk.white(agent)} │ dir: ${chalk.white(dir)}`));
+  console.log(chalk.gray('─'.repeat(60)));
 }
 
 // ═══════════════════════════════════════════════════════════
@@ -532,7 +527,7 @@ async function startTUI(options) {
 
   if (!config.apiKey) {
     printBanner();
-    console.log(chalk.yellow('⚠ No API key configured.'));
+    console.log(chalk.yellow('No API key configured.'));
     console.log(chalk.gray('Run: codeforge providers --set-key <your-key>\n'));
     return;
   }
@@ -548,14 +543,11 @@ async function startTUI(options) {
       if (last) {
         sessionId = last.id;
         messages = loadSession(sessionId);
-        console.log(chalk.green(`Continuing session: ${sessionId}`));
       } else {
         sessionId = generateId();
-        console.log(chalk.yellow('No previous session found. Starting new session.'));
       }
     } else {
       messages = loadSession(sessionId);
-      console.log(chalk.green(`Loaded session: ${sessionId}`));
     }
   } else {
     sessionId = generateId();
@@ -564,8 +556,7 @@ async function startTUI(options) {
   const model = options.model || config.defaultModel;
   const agent = options.agent || 'default';
 
-  printSessionInfo(sessionId, model);
-  console.log(chalk.gray('Type your message, /help for commands, Ctrl+C to exit\n'));
+  printStatusLine(model, agent, workspace.getRootDir());
 
   const sessionDir = getSessionDir(sessionId);
   saveSessionMeta(sessionId, {
@@ -629,7 +620,7 @@ async function startTUI(options) {
       useModel = AGENT_MODELS[currentAgent] || model;
     }
 
-    const spinner = ora({ text: 'Thinking...', color: 'cyan' }).start();
+    const spinner = ora({ text: 'Thinking...', color: 'gray' }).start();
 
     try {
       const response = await chat(apiMessages, useModel, config.apiKey, (chunk) => {
@@ -644,7 +635,9 @@ async function startTUI(options) {
       // Handle file operations from AI
       responseText = await handleAIFileOps(responseText);
 
-      console.log(chalk.green('\n\nCodeForge: ') + formatOutput(responseText));
+      console.log('');
+      console.log(formatOutput(responseText));
+      console.log('');
       messages.push({ role: 'assistant', content: responseText });
 
       // Update stats
@@ -709,14 +702,14 @@ async function handleCommand(input, sessionId, messages, model, agent, config) {
     case '/clear':
       messages.length = 0;
       saveSession(sessionId, []);
-      console.log(chalk.green('Session cleared.'));
+      console.log(chalk.gray('Session cleared.'));
       break;
 
     case '/export':
       const exportData = { sessionId, model, agent, messages, exportedAt: new Date().toISOString() };
       const exportFile = path.join(CONFIG_DIR, `export-${sessionId}.json`);
       fs.writeFileSync(exportFile, JSON.stringify(exportData, null, 2));
-      console.log(chalk.green(`Session exported to: ${exportFile}`));
+      console.log(chalk.gray(`Exported to ${exportFile}`));
       break;
 
     case '/sessions':
@@ -794,14 +787,12 @@ async function handleCommand(input, sessionId, messages, model, agent, config) {
         if (fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory()) {
           workspace.setRootDir(targetDir);
           workspace.projectInfo = null;
-          console.log(chalk.green(`Workspace: ${workspace.getRootDir()}`));
-          const project = workspace.detectProject();
-          console.log(chalk.gray(`Project: ${project.name} (${project.type})`));
+          printStatusLine(model, agent, workspace.getRootDir());
         } else {
-          console.log(chalk.red(`Directory not found: ${parts[1]}`));
+          console.log(chalk.gray(`Not found: ${parts[1]}`));
         }
       } else {
-        console.log(chalk.gray(`Current workspace: ${workspace.getRootDir()}`));
+        printStatusLine(model, agent, workspace.getRootDir());
       }
       break;
 
