@@ -1007,11 +1007,11 @@ program
   .action(async (messageParts, options) => {
     const config = loadConfig();
     if (!config.apiKey) {
-      console.log(chalk.yellow('⚠ No API key configured. Run: codeforge providers --set-key <key>'));
+      console.log(chalk.yellow('No API key configured. Run: codeforge providers --set-key <key>'));
       return;
     }
 
-    const message = messageParts.join(' ');
+    const message = Array.isArray(messageParts) ? messageParts.join(' ') : messageParts;
     const agent = options.agent || 'default';
     const model = options.model || (config.autoMode && AGENT_MODELS[agent] ? AGENT_MODELS[agent] : config.defaultModel);
 
