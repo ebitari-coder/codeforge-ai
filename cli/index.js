@@ -36,34 +36,55 @@ const AGENT_MODELS = {
 };
 
 const SYSTEM_PROMPTS = {
-  default: `You are CodeForge AI, an expert coding assistant. Help the user with their coding tasks. Write clean, production-ready code with best practices.`,
-  planner: `You are an expert software architect. Create detailed project plans with:
-- Project Overview
-- Tech Stack Recommendations
-- File Structure
+  default: `You are CodeForge AI, an expert coding assistant embedded in the user's terminal.
+
+You have access to the user's workspace. When they ask about "this project" or "the codebase", analyze the workspace context provided below.
+
+IMPORTANT: When the user asks to understand the project, read the workspace context and provide a comprehensive overview. Don't ask for links or descriptions - you already have access to the project.
+
+When you need to read a file, respond with: [READ: filepath]
+When you need to list a directory, respond with: [LIST: dirpath]
+When you need to search for files, respond with: [SEARCH: pattern]
+
+Always provide clean, production-ready code with best practices.`,
+  planner: `You are an expert software architect. Analyze the workspace and create detailed project plans with:
+- Project Overview (based on actual code)
+- Tech Stack (detected from dependencies)
+- Current File Structure
 - Implementation Steps
-- Potential Challenges`,
+- Potential Challenges
+
+When you need to read a file, respond with: [READ: filepath]
+When you need to list a directory, respond with: [LIST: dirpath]`,
   coder: `You are an expert code generator. Write clean, production-ready code with:
-- Best practices
+- Best practices for the detected language/framework
 - Error handling
 - Documentation
-- Type hints`,
+- Type hints
+
+When you need to read existing code for context, respond with: [READ: filepath]`,
   debugger: `You are an expert debugger. Analyze code and provide:
 - Issue identification
-- Root cause analysis
+- Root cause analysis  
 - Prevention tips
-- A FIXED version of the code inside a markdown code block starting with \`\`\`fixed\`\``,
-  reviewer: `You are an expert code reviewer. Provide:
-- Summary
+- A FIXED version of the code inside a markdown code block starting with \`\`\`fixed\`\`
+
+When you need to read files to debug, respond with: [READ: filepath]`,
+  reviewer: `You are an expert code reviewer. Analyze the workspace and provide:
+- Summary of the codebase
 - Strengths
 - Issues (severity: high/medium/low)
 - Recommendations
-- Rating (1-10)`,
-  explainer: `You are an expert technical educator. Explain the provided code clearly:
+- Rating (1-10)
+
+When you need to read files for review, respond with: [READ: filepath]`,
+  explainer: `You are an expert technical educator. Explain code clearly:
 - High-level purpose
-- Line-by-line or section-by-section breakdown
+- Line-by-line or section-by-line breakdown
 - Key concepts used
-- Potential improvements for clarity`
+- Potential improvements
+
+When you need to read files to explain, respond with: [READ: filepath]`
 };
 
 // ═══════════════════════════════════════════════════════════
@@ -256,6 +277,53 @@ function formatOutput(text) {
     .replace(/\*(.*?)\*/g, (_, text) => chalk.italic(text));
 }
 
+async function handleAIFileOps(text) {
+  const readPattern = /\[READ:\s*(.+?)\]/g;
+  const listPattern = /\[LIST:\s*(.+?)\]/g;
+  const searchPattern = /\[SEARCH:\s*(.+?)\]/g;
+
+  let result = text;
+  let match;
+
+  // Handle [READ: filepath]
+  while ((match = readPattern.exec(text)) !== null) {
+    const filePath = match[1].trim();
+    const content = workspace.readFile(filePath);
+    if (content) {
+      const lang = path.extname(filePath).slice(1) || 'text';
+      result = result.replace(match[0], `\n\`\`\`${lang}\n${content}\n\`\`\`\n`);
+    } else {
+      result = result.replace(match[0], `\n[Could not read file: ${filePath}]\n`);
+    }
+  }
+
+  // Handle [LIST: dirpath]
+  while ((match = listPattern.exec(text)) !== null) {
+    const dirPath = match[1].trim();
+    const items = workspace.listDir(dirPath);
+    if (items) {
+      const listing = items.map(i => i.isDir ? `  📁 ${i.name}/` : `  📄 ${i.name}`).join('\n');
+      result = result.replace(match[0], `\n${listing}\n`);
+    } else {
+      result = result.replace(match[0], `\n[Could not list directory: ${dirPath}]\n`);
+    }
+  }
+
+  // Handle [SEARCH: pattern]
+  while ((match = searchPattern.exec(text)) !== null) {
+    const pattern = match[1].trim();
+    const files = workspace.searchFiles(pattern);
+    if (files.length > 0) {
+      const listing = files.map(f => `  📄 ${f}`).join('\n');
+      result = result.replace(match[0], `\nFound files:\n${listing}\n`);
+    } else {
+      result = result.replace(match[0], `\n[No files matching: ${pattern}]\n`);
+    }
+  }
+
+  return result;
+}
+
 function printBanner() {
   console.log(chalk.blue(`
   _____          ______      ______                __      
@@ -276,6 +344,184 @@ function printSessionInfo(sessionId, model) {
     console.log(chalk.gray(`Session: ${sessionId} | Model: ${model} | Messages: ${meta.messageCount || 0}`));
   }
 }
+
+// ═══════════════════════════════════════════════════════════
+// Workspace Manager
+// ═══════════════════════════════════════════════════════════
+
+class WorkspaceManager {
+  constructor() {
+    this.rootDir = process.cwd();
+    this.projectInfo = null;
+  }
+
+  getRootDir() {
+    return this.rootDir;
+  }
+
+  setRootDir(dir) {
+    this.rootDir = dir;
+    this.projectInfo = null;
+  }
+
+  detectProject() {
+    if (this.projectInfo) return this.projectInfo;
+
+    const info = {
+      name: path.basename(this.rootDir),
+      type: 'unknown',
+      files: [],
+      structure: '',
+      config: null
+    };
+
+    // Detect project type
+    const checks = [
+      { file: 'package.json', type: 'node' },
+      { file: 'Cargo.toml', type: 'rust' },
+      { file: 'go.mod', type: 'go' },
+      { file: 'requirements.txt', type: 'python' },
+      { file: 'pyproject.toml', type: 'python' },
+      { file: 'Gemfile', type: 'ruby' },
+      { file: 'pom.xml', type: 'java' },
+      { file: 'build.gradle', type: 'java' },
+      { file: 'Makefile', type: 'c/c++' },
+      { file: 'CMakeLists.txt', type: 'c/c++' },
+      { file: 'tsconfig.json', type: 'typescript' },
+      { file: '.git', type: 'git' },
+    ];
+
+    for (const check of checks) {
+      if (fs.existsSync(path.join(this.rootDir, check.file))) {
+        if (check.type !== 'git') info.type = check.type;
+      }
+    }
+
+    // Read package.json if exists
+    const pkgPath = path.join(this.rootDir, 'package.json');
+    if (fs.existsSync(pkgPath)) {
+      try {
+        info.config = JSON.parse(fs.readFileSync(pkgPath, 'utf8'));
+        info.name = info.config.name || info.name;
+      } catch (e) {}
+    }
+
+    // Build file tree
+    info.structure = this.getTree(this.rootDir, 0, 2);
+
+    this.projectInfo = info;
+    return info;
+  }
+
+  getTree(dir, depth = 0, maxDepth = 2) {
+    if (depth >= maxDepth) return '';
+    
+    let tree = '';
+    try {
+      const items = fs.readdirSync(dir)
+        .filter(f => !f.startsWith('.') && f !== 'node_modules' && f !== '__pycache__' && f !== 'target' && f !== 'dist' && f !== '.git')
+        .sort((a, b) => {
+          const aIsDir = fs.statSync(path.join(dir, a)).isDirectory();
+          const bIsDir = fs.statSync(path.join(dir, b)).isDirectory();
+          return aIsDir === bIsDir ? a.localeCompare(b) : aIsDir ? -1 : 1;
+        })
+        .slice(0, 30);
+
+      for (const item of items) {
+        const itemPath = path.join(dir, item);
+        const isDir = fs.statSync(itemPath).isDirectory();
+        const indent = '  '.repeat(depth);
+        
+        if (isDir) {
+          tree += `${indent}${item}/\n`;
+          tree += this.getTree(itemPath, depth + 1, maxDepth);
+        } else {
+          tree += `${indent}${item}\n`;
+        }
+      }
+    } catch (e) {}
+    return tree;
+  }
+
+  readFile(filePath) {
+    const fullPath = path.isAbsolute(filePath) ? filePath : path.join(this.rootDir, filePath);
+    if (!fs.existsSync(fullPath)) return null;
+    if (fs.statSync(fullPath).isDirectory()) return null;
+    
+    // Check file size (limit to 100KB)
+    const stat = fs.statSync(fullPath);
+    if (stat.size > 100 * 1024) return `[File too large: ${(stat.size / 1024).toFixed(1)}KB]`;
+    
+    return fs.readFileSync(fullPath, 'utf8');
+  }
+
+  listDir(dirPath) {
+    const fullPath = dirPath ? (path.isAbsolute(dirPath) ? dirPath : path.join(this.rootDir, dirPath)) : this.rootDir;
+    if (!fs.existsSync(fullPath)) return null;
+    
+    try {
+      return fs.readdirSync(fullPath)
+        .filter(f => !f.startsWith('.'))
+        .map(f => {
+          const fPath = path.join(fullPath, f);
+          const isDir = fs.statSync(fPath).isDirectory();
+          return { name: f, isDir };
+        })
+        .sort((a, b) => a.isDir === b.isDir ? a.name.localeCompare(b.name) : a.isDir ? -1 : 1);
+    } catch (e) {
+      return null;
+    }
+  }
+
+  searchFiles(pattern, dir) {
+    const searchDir = dir ? (path.isAbsolute(dir) ? dir : path.join(this.rootDir, dir)) : this.rootDir;
+    const results = [];
+    const regex = new RegExp(pattern, 'i');
+    
+    const walk = (currentDir, depth = 0) => {
+      if (depth > 5) return;
+      try {
+        const items = fs.readdirSync(currentDir)
+          .filter(f => !f.startsWith('.') && f !== 'node_modules' && f !== '__pycache__' && f !== '.git');
+        
+        for (const item of items) {
+          const itemPath = path.join(currentDir, item);
+          const stat = fs.statSync(itemPath);
+          
+          if (stat.isDirectory()) {
+            walk(itemPath, depth + 1);
+          } else if (regex.test(item) || regex.test(fs.readFileSync(itemPath, 'utf8').slice(0, 10000))) {
+            results.push(path.relative(this.rootDir, itemPath));
+          }
+        }
+      } catch (e) {}
+    };
+    
+    walk(searchDir);
+    return results.slice(0, 20);
+  }
+
+  getWorkspaceContext() {
+    const project = this.detectProject();
+    let context = `Current workspace: ${this.rootDir}\n`;
+    context += `Project: ${project.name} (${project.type})\n`;
+    context += `\nProject structure:\n${project.structure}`;
+    
+    if (project.config?.description) {
+      context += `\nDescription: ${project.config.description}`;
+    }
+    if (project.config?.scripts) {
+      context += `\nScripts: ${Object.keys(project.config.scripts).join(', ')}`;
+    }
+    if (project.config?.dependencies) {
+      context += `\nDependencies: ${Object.keys(project.config.dependencies).slice(0, 15).join(', ')}`;
+    }
+    
+    return context;
+  }
+}
+
+const workspace = new WorkspaceManager();
 
 // ═══════════════════════════════════════════════════════════
 // Interactive TUI
@@ -367,8 +613,11 @@ async function startTUI(options) {
     // Add user message
     messages.push({ role: 'user', content: userMessage });
 
-    // Build system prompt
-    const systemPrompt = SYSTEM_PROMPTS[currentAgent] || SYSTEM_PROMPTS.default;
+    // Build system prompt with workspace context
+    const basePrompt = SYSTEM_PROMPTS[currentAgent] || SYSTEM_PROMPTS.default;
+    const workspaceContext = workspace.getWorkspaceContext();
+    const systemPrompt = `${basePrompt}\n\n${workspaceContext}`;
+    
     const apiMessages = [
       { role: 'system', content: systemPrompt },
       ...messages.slice(-config.maxHistory)
@@ -390,21 +639,21 @@ async function startTUI(options) {
 
       spinner.stop();
 
-      if (typeof response === 'object') {
-        // Non-streaming response
-        console.log(chalk.green('\n\nCodeForge: ') + formatOutput(response.content));
-        messages.push({ role: 'assistant', content: response.content });
+      let responseText = typeof response === 'object' ? response.content : response;
 
-        // Update stats
+      // Handle file operations from AI
+      responseText = await handleAIFileOps(responseText);
+
+      console.log(chalk.green('\n\nCodeForge: ') + formatOutput(responseText));
+      messages.push({ role: 'assistant', content: responseText });
+
+      // Update stats
+      if (typeof response === 'object') {
         const stats = loadStats();
         stats.totalTokens += response.tokens || 0;
         stats.requests++;
         stats.byModel[response.model] = (stats.byModel[response.model] || 0) + 1;
         saveStats(stats);
-      } else {
-        // Streaming response
-        console.log('');
-        messages.push({ role: 'assistant', content: response });
       }
 
       // Save session
@@ -448,6 +697,12 @@ async function handleCommand(input, sessionId, messages, model, agent, config) {
       console.log('  /agent <agent>     Switch agent (planner/coder/debugger/reviewer/explainer)');
       console.log('  /auto              Toggle auto mode');
       console.log('  /stats             Show usage statistics');
+      console.log('  /cd <dir>          Change workspace directory');
+      console.log('  /pwd               Show current workspace');
+      console.log('  /tree              Show project file tree');
+      console.log('  /read <file>       Read a file');
+      console.log('  /ls [dir]          List directory contents');
+      console.log('  /find <pattern>    Search for files');
       console.log('  /quit              Exit\n');
       break;
 
@@ -530,6 +785,74 @@ async function handleCommand(input, sessionId, messages, model, agent, config) {
         Object.entries(stats.byModel).forEach(([model, count]) => {
           console.log(`  ${model}: ${count} requests`);
         });
+      }
+      break;
+
+    case '/cd':
+      if (parts[1]) {
+        const targetDir = path.isAbsolute(parts[1]) ? parts[1] : path.join(workspace.getRootDir(), parts[1]);
+        if (fs.existsSync(targetDir) && fs.statSync(targetDir).isDirectory()) {
+          workspace.setRootDir(targetDir);
+          workspace.projectInfo = null;
+          console.log(chalk.green(`Workspace: ${workspace.getRootDir()}`));
+          const project = workspace.detectProject();
+          console.log(chalk.gray(`Project: ${project.name} (${project.type})`));
+        } else {
+          console.log(chalk.red(`Directory not found: ${parts[1]}`));
+        }
+      } else {
+        console.log(chalk.gray(`Current workspace: ${workspace.getRootDir()}`));
+      }
+      break;
+
+    case '/pwd':
+      console.log(chalk.gray(workspace.getRootDir()));
+      break;
+
+    case '/tree':
+      const tree = workspace.getTree(workspace.getRootDir(), 0, 3);
+      console.log(chalk.blue('\nProject Structure:'));
+      console.log(tree);
+      break;
+
+    case '/read':
+      if (parts[1]) {
+        const content = workspace.readFile(parts.slice(1).join(' '));
+        if (content) {
+          console.log(chalk.blue('\nFile Content:'));
+          console.log(content);
+        } else {
+          console.log(chalk.red(`Could not read file: ${parts[1]}`));
+        }
+      } else {
+        console.log(chalk.yellow('Usage: /read <filepath>'));
+      }
+      break;
+
+    case '/ls':
+      const dirPath = parts[1] || '';
+      const items = workspace.listDir(dirPath);
+      if (items) {
+        console.log(chalk.blue(`\nDirectory: ${dirPath || '.'}`));
+        items.forEach(item => {
+          console.log(item.isDir ? chalk.blue(`  📁 ${item.name}/`) : `  📄 ${item.name}`);
+        });
+      } else {
+        console.log(chalk.red(`Could not list directory: ${dirPath}`));
+      }
+      break;
+
+    case '/find':
+      if (parts[1]) {
+        const files = workspace.searchFiles(parts.slice(1).join(' '));
+        if (files.length > 0) {
+          console.log(chalk.blue(`\nFound ${files.length} files:`));
+          files.forEach(f => console.log(`  📄 ${f}`));
+        } else {
+          console.log(chalk.gray('No files found.'));
+        }
+      } else {
+        console.log(chalk.yellow('Usage: /find <pattern>'));
       }
       break;
 
