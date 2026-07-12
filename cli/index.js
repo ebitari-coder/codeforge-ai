@@ -1001,6 +1001,27 @@ program
   });
 
 program
+  .command('ide')
+  .description('Launch IDE interface')
+  .option('--agent <agent>', 'Default agent')
+  .option('--model <model>', 'Default model')
+  .option('--session <id>', 'Continue a session')
+  .option('--continue', 'Continue last session')
+  .action(async (options) => {
+    const { CodeForgeIDE } = require('./ide');
+    const config = loadConfig();
+    if (!config.apiKey) {
+      printBanner();
+      console.log(chalk.yellow('No API key configured.'));
+      console.log(chalk.gray('Run: codeforge providers --set-key <your-key>\n'));
+      return;
+    }
+    const ide = new CodeForgeIDE(options);
+    ide.start();
+  });
+
+program
+  .option('--tui', 'Launch TUI mode (classic interface)')
   .command('run <message..>')
   .description('Run a single message (non-interactive)')
   .option('-m, --model <model>', 'Model to use')
@@ -1147,8 +1168,26 @@ program
   });
 
 program
+  .option('--ide', 'Launch IDE interface (default)')
+  .option('--tui', 'Launch classic TUI interface')
   .action(async (options) => {
-    await startTUI(options);
+    if (options.tui) {
+      await startTUI(options);
+    } else if (options.ide || (!options.run && !options.review && !options.debug && !options.explain && !options.models && !options.sessions && !options.stats && !options.export && !options.providers)) {
+      // Launch IDE mode (default)
+      const { CodeForgeIDE } = require('./ide');
+      const config = loadConfig();
+      if (!config.apiKey) {
+        printBanner();
+        console.log(chalk.yellow('No API key configured.'));
+        console.log(chalk.gray('Run: codeforge providers --set-key <your-key>\n'));
+        return;
+      }
+      const ide = new CodeForgeIDE(options);
+      ide.start();
+    } else {
+      await startTUI(options);
+    }
   });
 
 program.parse();
